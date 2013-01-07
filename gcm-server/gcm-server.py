@@ -3,9 +3,9 @@
 import json
 import urllib2
 
-api_key = "AIzaSyDRHiFrhibsNqcAJwfb0jaFxv93GAgY-v0"
+api_key = "***************"
 reg_ids = {} 
-reg_ids['stian'] = 'APA91bHKF6_ACp20R3bZ3GF8_MYb_1icHWuTZ6Ja7UyyoW82P6Rr2gAo3qm-mEFjl3dQ2RLmMdGun0nI3jgnayNj96hrMbtBSyzh3Eve-bOA53F0JRUjXz8wHMT8EjT1RJxh1HvFs5m2qs92leuQUVAPxhppKKy3sQ'
+reg_ids['stian'] = '**********'
 reg_ids['pelle'] = 'fkldjahs_lkjfdkjfhdaksjhfgdksjhgafkdsajhgfdkhgsakdh'
 class gcm_server(object):
 
