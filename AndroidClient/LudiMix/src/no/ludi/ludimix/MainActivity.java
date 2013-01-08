@@ -20,10 +20,10 @@ public class MainActivity extends Activity {
 	static final private String TAG = "MainActivity";
 	static final private String SENDER_ID = "919676944722";
 	
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		
+	private SharedPreferences settings;
+	
+	private void create(Bundle savedInstanceState) {
+		// TODO Auto-generated method stub
 		GCMRegistrar.checkDevice(this);
 		GCMRegistrar.checkManifest(this);
 		final String regId = GCMRegistrar.getRegistrationId(this);
@@ -36,12 +36,25 @@ public class MainActivity extends Activity {
 		
 		setContentView(R.layout.activity_main);
 		TextView txt_loggedInAs = (TextView)findViewById(R.id.loggedInAs);
-		SharedPreferences settings = getSharedPreferences("login_data", 0);
 	    
 		int userid = settings.getInt("user_id", 0);
 	    String username = settings.getString("user_mail", "");
 		txt_loggedInAs.setText("Brukernavn: " + username);
-		Toast.makeText(this, "BYGGE", Toast.LENGTH_SHORT).show();
+	}
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		
+		settings = getSharedPreferences("login_data", 0);
+		boolean gotLoginData = settings.getBoolean(LoginActivity.SETTINGS_USER_ONLINE, false);
+		if (gotLoginData) {
+			create(savedInstanceState);
+		}
+		else {
+	    	Intent loginIntent = new Intent(this, LoginActivity.class);
+	    	startActivityForResult(loginIntent, LOGIN_ACTIVITY_RETURNED);
+		}
 	}
 
 	@Override
@@ -79,16 +92,17 @@ public class MainActivity extends Activity {
 					boolean status = data.getBooleanExtra(LoginActivity.RESULT_EXTRA_STATUS, false);
 					if (status) {
 						// TODO LOGGED IN
-						Toast.makeText(this, "LOGGED IN", Toast.LENGTH_SHORT).show();
+						recreate();
 					}
 					else {
 						// TODO LOGGED OUT
-						Toast.makeText(this, "LOGGED OUT", Toast.LENGTH_SHORT).show();
+						finish();
 					}
 				}
 				else {
 					// TODO LOGIN ABORTED
-					Toast.makeText(this, "LOGIN ABORTED", Toast.LENGTH_SHORT).show();
+					boolean user_online = settings.getBoolean(LoginActivity.SETTINGS_USER_ONLINE, false);
+					if (!user_online) { finish(); }
 				}
 				break; 
 			case SETTINGS_ACTIVITY_RETURNED:

@@ -12,40 +12,39 @@ import com.google.android.gcm.GCMBaseIntentService;
 public class GCMIntentService extends GCMBaseIntentService {
 
 	@Override
-	protected void onError(Context ctx, String arg) {
+	protected void onError(Context context, String errorId) {
 		// TODO Auto-generated method stub
 
 	}
 	
 	@Override
-	protected boolean onRecoverableError(Context ctx, String errorId) {
+	protected boolean onRecoverableError(Context context, String errorId) {
 		// TODO Auto-generated method stub
-		return super.onRecoverableError(ctx, errorId);
+		return super.onRecoverableError(context, errorId);
 	}
 
 	@Override
-	protected void onMessage(Context ctx, Intent arg) {
-		Log.v(TAG, "onMessage: " + arg.toString());
+	protected void onMessage(Context context, Intent intent) {
+		Log.v(TAG, "onMessage: " + intent.toString());
 		// TODO Auto-generated method stub
-		Bundle b = arg.getExtras();
+		Bundle b = intent.getExtras();
 		Set<String> keys = b.keySet();
 		for (String key : keys) {
 			Object o = b.get(key);
-			String type = o.getClass().toString();
 			Log.i(TAG, "onMessageMsg: k=" + key + " v=" + (String)o);
 		}
 	}
 
 	@Override
-	protected void onRegistered(Context ctx, String arg) {
+	protected void onRegistered(Context context, String registrationId) {
 		// TODO Auto-generated method stub
-		Log.v(TAG, "onRegister: " + arg.toString());
+		Log.v(TAG, "onRegister: " + registrationId);
 	}
 
 	@Override
-	protected void onUnregistered(Context ctx, String arg) {
+	protected void onUnregistered(Context context, String registrationId) {
 		// TODO Auto-generated method stub
-		Log.v(TAG, "onUnregister: " + arg.toString());
+		Log.v(TAG, "onUnregister: " + registrationId);
 	}
 
 }

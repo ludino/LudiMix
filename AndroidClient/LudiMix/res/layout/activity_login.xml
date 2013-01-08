@@ -8,10 +8,9 @@
         android:id="@+id/login_info"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:gravity="center_horizontal"
+        android:gravity="left"
         android:orientation="vertical"
-        android:visibility="gone" >
+        android:visibility="invisible" >
 
         <TextView
             android:id="@+id/iUserId"
@@ -36,7 +35,7 @@
         android:layout_gravity="center"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:visibility="gone" >
+        android:visibility="invisible" >
 
         <ProgressBar
             style="?android:attr/progressBarStyleLarge"
@@ -59,7 +58,8 @@
     <ScrollView
         android:id="@+id/login_form"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+        android:layout_height="match_parent" 
+        android:visibility="invisible">
 
         <LinearLayout
             style="@style/LoginFormContainer"
@@ -85,12 +85,6 @@
                 android:inputType="textPassword"
                 android:maxLines="1"
                 android:singleLine="true" />
-
-            <CheckBox
-                android:id="@+id/remember_login"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Remember me" />
 
             <Button
                 android:id="@+id/sign_in_button"
