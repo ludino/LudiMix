@@ -1,3 +1,5 @@
 AndroidClient/LudiMix/bin/
 AndroidClient/LudiMix/gen/
 AndroidClient/.metadata/
+PythonServer/.metadata/
+*pyc
