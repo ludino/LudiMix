@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gcm.GCMBaseIntentService;
 
@@ -32,6 +33,10 @@ public class GCMIntentService extends GCMBaseIntentService {
 		for (String key : keys) {
 			Object o = b.get(key);
 			Log.i(TAG, "onMessageMsg: k=" + key + " v=" + (String)o);
+			if (key.equals("msg")) {
+				Toast.makeText(getApplicationContext(), "MSG: " + (String)o, Toast.LENGTH_SHORT).show();
+				Log.i(TAG, "ShouldToast");
+			}
 		}
 	}
 
