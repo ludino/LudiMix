@@ -1,5 +1,8 @@
 import urllib2
 import json
+import hashlib
+import random
+import string
 
 class Server(object):
 
@@ -16,11 +19,12 @@ class Server(object):
         for name in to:
             user = self.user_db.find_by_name(name)
             if not user == None:
-                key = user.reg_ids # TODO: CHECK THIS
-                if key == None or key == "":
+                keys = user.reg_ids
+                if keys == None or keys == []:
                     continue
-                ret["reg_id_list"].append(key)
-                ret["user_list"].append(user)
+                for k in keys:
+                    ret["reg_id_list"].append(k)
+                    ret["user_list"].append(user)
         
         if len(ret["reg_id_list"]) < 1:
             ret["error"] = True
@@ -42,8 +46,6 @@ class Server(object):
         try:
             response = urllib2.urlopen(request)
             data = json.loads(response.read())
-            print "Data:"
-            print data
             ret["error"] = False
             ret["status_code"] = 200
             ret["data"] = data
@@ -68,7 +70,9 @@ class Server(object):
         for result in data['results']:
             if 'message_id' in result:
                 if 'registration_id' in result:
-                    self.reg_ids[to[to_index]] = result['registration_id'] # TODO: Check this
+                    user = users[to_index]
+                    index = user.tokens.index(to[to_index])
+                    user.tokens[index] = result['registration_id']
             else:
                 error = result['error']
                 if error == "MissingRegistration":
@@ -108,8 +112,38 @@ class User(object):
         self.user_id = None
         self.username = None
         self.password = None
+        self.salt = None
+        self.password_rounds = None
         self.tokens = None
         self.reg_ids = None
+
+
+    """
+    r1 = SHA512(msg + salt)
+    r2 = SHA512(msg + salt + r1 + salt)
+    r3 = SHA512(msg + salt + r1 + salt + r2 + salt)
+    """
+    @staticmethod
+    def hash(msg):
+        rounds = 100000
+        random.seed()
+        rand = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(10))
+        m = hashlib.sha512()
+        m.update(msg + rand)
+        random.seed(m.hexdigest())
+        salt_len = random.randrange(10, 20, 1)
+        salt = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(salt_len))
+        tmp = msg
+        for _ in xrange(rounds):
+            m = hashlib.sha512()
+            m.update(tmp + salt)
+            tmp = m.hexdigest()
+        return tmp, salt, rounds
+
+    def updatePassword(self, passwd, salt, rounds):
+        self.password = passwd
+        self.salt = salt
+        self.password_rounds = rounds
 
     def setValues(self, user_id, username, password, tokens, reg_ids):
         self.user_id = int(user_id)
@@ -123,6 +157,8 @@ class User(object):
         string["user_id"] = self.user_id
         string["username"] = self.username
         string["password"] = self.password
+        string["salt"] = self.salt
+        string["password_rounds"] = self.password_rounds
         string["tokens"] = self.tokens
         string["reg_ids"] = self.reg_ids
         return json.dumps(string)
@@ -132,13 +168,15 @@ class User(object):
         self.user_id = int(string["user_id"]) 
         self.username = string["username"]
         self.password = string["password"] 
+        self.salt = string["salt"]
+        self.password_rounds = string["password_rounds"]
         self.tokens = string["tokens"]
         self.reg_ids = string["reg_ids"]
         
     def show(self):
         print "User ID:\t\t%s" % self.user_id 
         print "Username:\t\t%s" % self.username
-        print "Password:\t\t%s" % self.password
+        print "Password:\t\t%s" % ("-" if self.password == None else self.password)
         
         if not len(self.tokens) == 0:
             print "" 
@@ -216,12 +254,15 @@ class UserDatabase(object):
     
     def list(self):
         print "Users:"
-        print "%s\t| %-30s\t\t| %s" % ("UserID", "Username", "Registered")
-        print "-" * 68
+        print "-" * 76
+        print "| %s  | PW\t| %-30s\t\t| %s" % ("UserID", "Username", "Registered")
+        print "-" * 76
         for user_id in self._users_by_id:
             user = self._users_by_id[user_id]
-            reg_id = "No" if len(user.reg_ids) == 0 else "Yes"
-            print "%s\t| %-30s\t\t| %s" % (user.user_id, user.username, reg_id)
+            pw = ("n" if user.password == None or user.password == "" else "Y")
+            reg_id = ("No" if len(user.reg_ids) == 0 else "Yes")
+            print "| %s\t  | %c\t| %-30s\t\t| %s" % (user.user_id, pw, user.username, reg_id)
+        print "-" * 76
             
     def find_by_id(self, user_id):
         if not user_id in self._users_by_id:

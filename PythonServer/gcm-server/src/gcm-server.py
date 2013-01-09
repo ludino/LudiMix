@@ -3,6 +3,7 @@
 import json
 import sys
 import ludimix
+import getpass
 
 api_key = "AIzaSyDRHiFrhibsNqcAJwfb0jaFxv93GAgY-v0"
 user_db_file = '/Volumes/macdata/Users/stianfauskanger/test/gcm-server/users'
@@ -31,17 +32,13 @@ def run_cli(args):
     user_db.load()    
 
     to = args[0]
-    msg = ""
-    for word in args[1:]:
-        msg += word + " "
-    msg = msg.strip()
+    msg = " ".join(args[1:])
      
     data = {}
     data["msg"] = msg
     
     server = ludimix.Server(api_key, user_db)
     result = server.send_data([to], data)
-    print type(result["error"])
     if result["error"]:
         print "Error: " + str(result["error_reason"])
     else:
@@ -69,17 +66,36 @@ def run_showuser(args):
         exit()
     user.show()    
 
-def run_adduser(args):
-    if len(args) < 2:
+def run_passwd(args):
+    if len(args) < 1:
         syntax()
-    username, password = args[:2]
+    username = args[0]
+    passwd = getpass.getpass("Enter password:")
+    passwd2 = getpass.getpass("Renter password:")
+    if not passwd == passwd2:
+        print "Passwords did not match"
+        exit()
+
+    user_db = ludimix.UserDatabase(user_db_file)
+    user_db.load()
+    user = user_db.find_by_name(username)
+    passwdd, salt, rounds = ludimix.User.hash(passwd) # running for 0.333333 seconds on my computer
+    
+    user.updatePassword(passwdd, salt, rounds)
+    user_db.save()
+    print "Password set for '" + username + "'"
+
+def run_adduser(args):
+    if len(args) < 1:
+        syntax()
+    username = args[0]
     reg_ids = []
-    if len(args) >= 3:
-        reg_ids = [args[2]]
+    if len(args) >= 2:
+        reg_ids = [args[1]]
     
     user_db = ludimix.UserDatabase(user_db_file)
     user_db.load()
-    if user_db.add(username, password, [], reg_ids):
+    if user_db.add(username, None, [], reg_ids):
         user_db.save()
         print "User '" + username + "' added"
         exit()
@@ -102,13 +118,14 @@ def run_remuser(args):
 
 def syntax():
     print "Syntax:"
-    print "gcm-server.py [option] [user] [msg|password] [reg_id]"
+    print "gcm-server.py [option] [user] [msg|reg_id]"
     print "options:"
     print "\t--daemon\t\t\t\tRun as a daemon"
     print "\t--cli to msg\t\t\t\tSend msg to user once, and quit"
     print "\t--listusers\t\t\t\tList users"
-    print "\t--showuser\t\t\t\tRemove users"
-    print "\t--adduser username password [reg_id]\tAdd user"
+    print "\t--showuser user\t\t\t\tShow information about user"
+    print "\t--passwd user\t\t\t\tSet password for user"
+    print "\t--adduser username [reg_id]\t\tAdd user"
     print "\t--remuser\t\t\t\tRemove users"
     exit()
 
@@ -126,6 +143,8 @@ def main():
         run_listusers(args)
     elif runAs == "--showuser":
         run_showuser(args)
+    elif runAs == "--passwd":
+        run_passwd(args)
     elif runAs == "--adduser":
         run_adduser(args)
     elif runAs == "--remuser":
