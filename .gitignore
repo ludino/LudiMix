@@ -3,3 +3,4 @@ AndroidClient/LudiMix/gen/
 AndroidClient/.metadata/
 PythonServer/.metadata/
 *pyc
+PythonServer/gcm-server/src/key/dill/
