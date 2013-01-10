@@ -3,6 +3,30 @@ import json
 import hashlib
 import random
 import string
+import socket
+import ssl
+import select
+
+class Connection(object):
+    
+    def __init__(self, newsocket, fromaddr):
+        self.connstream = ssl.wrap_socket(newsocket,
+                                     server_side=True,
+                                     certfile="key/server.crt",
+                                     keyfile="key/server.key",
+                                     ssl_version=ssl.PROTOCOL_TLSv1)
+        print "New connection: " + str(self.connstream.fileno())
+        self.connstream.send("Velkommen :)")
+            
+    def get_pollable_object(self):
+        return self.connstream
+    
+    def on_new_data(self):
+        print "Got new data:"
+        print self.connstream.read()
+        
+    def closed(self):
+        print "Bye bye connection " + str(self.connstream.fileno())
 
 class Server(object):
 
@@ -11,6 +35,35 @@ class Server(object):
         self.user_db = user_db
         self.user_db.load()
         self.gcm_url = "https://android.googleapis.com/gcm/send"
+
+    def run_daemon(self):
+        bindsocket = socket.socket()
+        bindsocket.bind(('127.0.0.1', 10023))
+        bindsocket.listen(5)
+        print "Running..."
+        poll = select.poll()
+        listen_fd = bindsocket.fileno()
+        poll_mask = select.POLLIN | select.POLLPRI 
+        poll.register(listen_fd, poll_mask)
+        connections = {}
+        while True:
+            pollables = poll.poll()
+            for pollable in pollables:
+                fd, event = pollable
+                if fd == listen_fd:
+                    newsocket, fromaddr = bindsocket.accept()
+                    new_connection = Connection(newsocket, fromaddr)
+                    poll.register(new_connection.get_pollable_object(), poll_mask)
+                    connections[newsocket.fileno()] = new_connection
+                else:
+                    print "New data on " + str(fd) + " " + str(event), 
+                    #print str((select.POLLIN, select.POLLPRI, select.POLLOUT, select.POLLERR, select.POLLHUP, select.POLLNVAL))
+                    if event & select.POLLHUP > 0:
+                        poll.unregister(fd)
+                        connections[fd].closed()
+                        del connections[fd]
+                    elif event & select.POLLIN > 0:
+                        connections[fd].on_new_data()
 
     def send_data(self, to, data_content):
         ret = {}

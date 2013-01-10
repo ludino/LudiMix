@@ -22,7 +22,10 @@ def run_test(args):
     user_db.save()
     
 def run_daemon(args):
-    pass
+    user_db = ludimix.UserDatabase(user_db_file)
+    user_db.load()
+    server = ludimix.Server(api_key, user_db)
+    server.run_daemon()
 
 def run_cli(args):
     if len(args) < 2:
