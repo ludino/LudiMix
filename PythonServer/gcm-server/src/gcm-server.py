@@ -4,6 +4,7 @@ import json
 import sys
 import ludimix
 import getpass
+import sys
 
 api_key = "AIzaSyDRHiFrhibsNqcAJwfb0jaFxv93GAgY-v0"
 user_db_file = '/Volumes/macdata/Users/stianfauskanger/test/gcm-server/users'
@@ -25,7 +26,12 @@ def run_daemon(args):
     user_db = ludimix.UserDatabase(user_db_file)
     user_db.load()
     server = ludimix.Server(api_key, user_db)
-    server.run_daemon()
+    try:
+        server.run_daemon()
+    except KeyboardInterrupt:
+        server.exit("interrupt")
+        sys.exit(0)
+    
 
 def run_cli(args):
     if len(args) < 2:

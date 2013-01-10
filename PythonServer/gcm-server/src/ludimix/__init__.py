@@ -1,32 +1,119 @@
-import urllib2
-import json
 import hashlib
+import json
 import random
-import string
+import select
 import socket
 import ssl
-import select
+import string
+import urllib2
 
 class Connection(object):
     
-    def __init__(self, newsocket, fromaddr):
+    def __init__(self, newsocket, fromaddr, user_db):
+        self.user_db = user_db
         self.connstream = ssl.wrap_socket(newsocket,
                                      server_side=True,
                                      certfile="key/server.crt",
                                      keyfile="key/server.key",
                                      ssl_version=ssl.PROTOCOL_TLSv1)
         print "New connection: " + str(self.connstream.fileno())
-        self.connstream.send("Velkommen :)")
+        self.connstream.send("service?")
+        self.service = None
+        self.user = None
             
     def get_pollable_object(self):
         return self.connstream
     
+    """
+    Errors:
+    NotJson................Received data is not a valid json string
+    NoCmdOrArgv............Received json object does not contain the keys 'cmd' AND 'argv'
+    NotAuthenticated.......Client is not logged in, and command is not 'login'
+    NoService..............Received service request is invalid
+    MissingCredentials.....Received login request does not contain the key 
+                           'username' AND 'password' within 'argv'
+    WrongCredentials.......Received login request contains an invalid username or password
+    Authenticated..........Received login request is accepted
+    """
+    def do_client(self, data):
+        json_obj = None
+        try:
+            json_obj = json.loads(data)
+        except:
+            self.client_error("NotJson")
+            return False
+        
+        command = None
+        argv = None
+        try:
+            command = json_obj["cmd"]
+            argv = json_obj["argv"]
+        except:
+            self.client_error("NoCmdOrArgv")
+            return False
+        
+        #client not logged in
+        if self.user == None:
+            if command == "login":
+                try:
+                    username = argv["username"]
+                    password = argv["password"]
+                except:
+                    self.client_error("MissingCredentials")
+                    return False
+                
+                user = self.user_db.find_by_name(username)
+                if user == None:
+                    self.client_error("WrongCredentials")
+                    return False
+                elif not user.password == password:
+                    self.client_error("WrongCredentials")
+                    return False
+                else:
+                    self.connstream.write("Authenticated")
+                    self.user = user
+                    return True
+
+            else:
+                self.client_error("NotAuthenticated")
+                return False
+            
+        #client already logged in
+        else:
+            self.connstream.write("Authorized command: " + command)
+            return True
+
+    
     def on_new_data(self):
-        print "Got new data:"
-        print self.connstream.read()
+        data = self.connstream.read().strip()
+        if self.service == None:
+            self.service = data
+            if self.service == "client":
+                self.connstream.write("OK ")
+                return True
+            else:
+                self.client_error("NoService")
+                return False
+        elif self.service == "client":
+            return self.do_client(data)
+        else:
+            self.server_error("on_new_data(): service != None, service != client")
+            return False
+        
+    def server_error(self, error):
+        self.connstream.write("InternalError")
+        # TODO: log error
+        
+    def client_error(self, error):
+        self.connstream.write(error)
+        
+    def close(self):
+        print "Closing connection " + str(self.connstream.fileno())
+        sock = self.connstream.unwrap()
+        sock.close()
         
     def closed(self):
-        print "Bye bye connection " + str(self.connstream.fileno())
+        print "Client disconnected " + str(self.connstream.fileno())
 
 class Server(object):
 
@@ -35,6 +122,13 @@ class Server(object):
         self.user_db = user_db
         self.user_db.load()
         self.gcm_url = "https://android.googleapis.com/gcm/send"
+
+    def exit(self, reason=None):
+        if reason == None:
+            pass
+        elif reason == "interrupt":
+            print "Interupted..."
+        print "\nExit exit exit"
 
     def run_daemon(self):
         bindsocket = socket.socket()
@@ -52,18 +146,22 @@ class Server(object):
                 fd, event = pollable
                 if fd == listen_fd:
                     newsocket, fromaddr = bindsocket.accept()
-                    new_connection = Connection(newsocket, fromaddr)
+                    new_connection = Connection(newsocket, fromaddr, self.user_db)
                     poll.register(new_connection.get_pollable_object(), poll_mask)
                     connections[newsocket.fileno()] = new_connection
                 else:
-                    print "New data on " + str(fd) + " " + str(event), 
+                    print "New data on " + str(fd) + " " + str(event)
                     #print str((select.POLLIN, select.POLLPRI, select.POLLOUT, select.POLLERR, select.POLLHUP, select.POLLNVAL))
                     if event & select.POLLHUP > 0:
                         poll.unregister(fd)
                         connections[fd].closed()
                         del connections[fd]
                     elif event & select.POLLIN > 0:
-                        connections[fd].on_new_data()
+                        status = connections[fd].on_new_data()
+                        if status == False:
+                            poll.unregister(fd)
+                            connections[fd].close()
+                            del connections[fd]
 
     def send_data(self, to, data_content):
         ret = {}
